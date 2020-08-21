@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CursoIdiomaApi.Model
@@ -12,7 +13,9 @@ namespace CursoIdiomaApi.Model
         public string Nome { get; set; }
         [Required(ErrorMessage = "Matrícula é obrigatório")]
         public int Matricula { get; set; }
+        [Required]
         public int TurmaId { get; set; }
+        [JsonIgnore]
         public Turma Turma { get; set; }
     }
 }
