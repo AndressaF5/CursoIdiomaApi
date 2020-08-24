@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using CursoIdiomaApi.Data;
+﻿using CursoIdiomaApi.Data;
 using CursoIdiomaApi.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace CursoIdiomaApi.Controllers
 {
@@ -14,88 +9,59 @@ namespace CursoIdiomaApi.Controllers
     [ApiController]
     public class AlunosController : ControllerBase
     {
-        ApplicationDbContext context = new ApplicationDbContext();
+        private readonly ApplicationDbContext _context;
 
-        // GET: api/<AlunosController>
-        [HttpGet]
-        public IEnumerable<Aluno> Get()
+        public AlunosController(ApplicationDbContext context)
         {
-            string connectionString = "Server=DESKTOP-OCEO2U4;Database=cursoIdioma;Trusted_Connection=True;";
-
-            var alunos = new List<Aluno>();
-
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                var query = "SELECT * FROM dbo.Alunos";
-                SqlCommand select = new SqlCommand(query, connection);
-                try
-                {
-                    connection.Open();
-                    using (var reader = select.ExecuteReader(CommandBehavior.CloseConnection))
-                    {
-                        while (reader.Read())
-                        {
-                            var aluno = new Aluno();
-                            aluno.Id = (int)reader["Id"];
-                            aluno.Nome = reader["Nome"].ToString();
-                            aluno.Matricula = (int)reader["Matricula"];
-                            aluno.TurmaId = (int)reader["TurmaId"];
-
-                            alunos.Add(aluno);
-                        }
-                    }
-                }catch (Exception e)
-                {
-                    throw e;
-                }
-                finally
-                {
-                    connection.Close();
-                }
-            }
-
-            return alunos;
+            _context = context;
         }
 
-        // GET api/<AlunosController>/9
-        [HttpGet("{id}")]
-        public IActionResult Get(int id)
+        [Authorize]
+        [HttpPost]
+        public ActionResult Cadastrar([FromBody] Aluno aluno)
         {
-
-            if (id == null)
+            if (!ModelState.IsValid)
             {
                 return BadRequest();
             }
-            var aluno = context.Alunos.Find(id);
-            if (aluno == null)
+
+            var alunosSalvos = _context.Alunos;
+
+            foreach (var propriedade in alunosSalvos)
             {
-                return NotFound("Aluno não encontrado");
+                if (aluno.Matricula == propriedade.Matricula)
+                {
+                    return BadRequest("Número de matrícula está sendo usado");
+                }
             }
 
-            return Ok(aluno);
+            _context.Alunos.Add(aluno);
+            _context.SaveChanges();
+
+            return Created($"/api/alunos/{aluno.Id}", aluno);
+
         }
 
-        // POST api/<AlunosController>
-        [HttpPost]
-        public void Post([FromBody] Aluno aluno)
-        {
-            context.Alunos.Add(aluno);
-            context.SaveChanges();
-        }
-
-        // PUT api/<AlunosController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<AlunosController>/5
+        [Authorize]
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public ActionResult Delete(int id)
         {
-            var aluno = context.Alunos.Find(id);
-            context.Alunos.Remove(aluno);
-            context.SaveChanges();
+            var aluno = _context.Alunos.Find(id);
+
+            if (aluno == null)
+            {
+                return NotFound();
+            }
+
+            if (aluno.TurmaId != null)
+            {
+                return BadRequest("Aluno está em uma turma e não pode ser excluído");
+            }
+
+            _context.Alunos.Remove(aluno);
+            _context.SaveChanges();
+
+            return NoContent();
         }
     }
 }
